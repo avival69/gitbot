@@ -79,7 +79,7 @@ function App() {
         geminiData.candidates[0]?.content?.parts[0]?.text || "Solution generation failed";
 
       setSolution(generatedSolution);
-      console.log("Generated Solution:", generatedSolution);
+      console.log("Generatedd Solution:", generatedSolution);
     } catch (error) {
       console.error("Error generating solution:", error);
     } finally {
