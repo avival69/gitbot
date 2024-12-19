@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Octokit } from "@octokit/rest";
 
-const GEMINI_API_KEY = "AIzaSyC78S7o56Pb3lKpFHtrBAXdUOfl4EVUovU";
-const GITHUB_PAT = "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"; // Replace with your Personal Access Token
+const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY; // Replace with your environment variable
+const GITHUB_PAT = process.env.REACT_APP_GITHUB_PAT; // Replace with your environment variable
+
 const REPO_OWNER = "avival69"; // Your GitHub username
 const REPO_NAME = "leet-code-everyday"; // Repository name
-const BASIC_AUTH = btoa("aswin:aswin123"); // Basic Authentication (encoded)
 
 function App() {
   const [questionLink, setQuestionLink] = useState("");
@@ -17,18 +17,25 @@ function App() {
   const fetchLeetCodeQuestionLink = async () => {
     try {
       setLoading(true);
+      console.log("Fetching question links...");
+
       const response = await fetch(
-        "https://raw.githubusercontent.com/raiyansayeed/leetcode-download-questions/master/question_links.txt",
-        {
-          headers: {
-            Authorization: `Basic ${BASIC_AUTH}`,
-          },
-        }
+        "https://raw.githubusercontent.com/raiyansayeed/leetcode-download-questions/master/question_links.txt"
       );
+
+      if (!response.ok) {
+        console.error("Failed to fetch links:", response.statusText);
+        return;
+      }
+
       const text = await response.text();
       const links = text.split("\n").filter((link) => link.trim() !== "");
 
-      // Pick a random link
+      if (links.length === 0) {
+        console.error("No links found in the file.");
+        return;
+      }
+
       const randomIndex = Math.floor(Math.random() * links.length);
       const randomLink = links[randomIndex];
 
@@ -49,7 +56,7 @@ function App() {
     }
 
     try {
-      setLoading(true); // Start loading
+      setLoading(true);
       const questionTitle = questionLink.split("/").pop().replace(/-/g, " ");
 
       const geminiResponse = await fetch(
@@ -58,32 +65,23 @@ function App() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Basic ${BASIC_AUTH}`,
           },
           body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: `Solve the following programming question I found on LeetCode in Python:\n\n${questionTitle}`,
-                  },
-                ],
-              },
-            ],
+            prompt: `Solve the following programming question in Python:\n\n${questionTitle}`,
           }),
         }
       );
 
       const geminiData = await geminiResponse.json();
       const generatedSolution =
-        geminiData.candidates[0]?.content?.parts[0]?.text || "Solution generation failed";
+        geminiData?.candidates?.[0]?.output || "Solution generation failed.";
 
       setSolution(generatedSolution);
-      console.log("Generatedd Solution:", generatedSolution);
+      console.log("Generated Solution:", generatedSolution);
     } catch (error) {
       console.error("Error generating solution:", error);
     } finally {
-      setLoading(false); // Stop loading
+      setLoading(false);
     }
   };
 
@@ -95,7 +93,7 @@ function App() {
     }
 
     try {
-      setLoading(true); // Start loading
+      setLoading(true);
       const octokit = new Octokit({ auth: GITHUB_PAT });
       const fileName = `solutions/${new Date()
         .toISOString()
@@ -109,9 +107,9 @@ function App() {
           repo: REPO_NAME,
           path: fileName,
         });
-        sha = data.sha; // File exists, get its SHA
+        sha = data.sha;
       } catch {
-        sha = undefined; // File does not exist
+        sha = undefined;
       }
 
       // Commit the solution
@@ -120,8 +118,8 @@ function App() {
         repo: REPO_NAME,
         path: fileName,
         message: `Add solution for ${questionLink.split("/").pop()}`,
-        content: btoa(solution), // Encode content in Base64
-        sha: sha, // Required if file exists
+        content: btoa(solution),
+        sha: sha,
       });
 
       console.log(`Solution committed successfully: ${fileName}`);
@@ -136,12 +134,12 @@ function App() {
     } catch (error) {
       console.error("Error committing solution to GitHub:", error);
     } finally {
-      setLoading(false); // Stop loading
+      setLoading(false);
     }
   };
 
-  // Function to automate daily upload at 6 PM IST
-  const scheduleDailyUpload = () => {
+  // Schedule daily uploads at 6 PM IST with 5 contributions
+  const scheduleDailyUploads = () => {
     const now = new Date();
     const sixPMIST = new Date();
 
@@ -157,23 +155,30 @@ function App() {
     }
 
     // Schedule the first execution
-    setTimeout(() => {
-      fetchLeetCodeQuestionLink()
-        .then(generateSolution)
-        .then(commitSolutionToGitHub);
+    setTimeout(async () => {
+      for (let i = 0; i < 5; i++) {
+        setTimeout(() => {
+          fetchLeetCodeQuestionLink()
+            .then(generateSolution)
+            .then(commitSolutionToGitHub);
+        }, i * 30 * 60 * 1000); // 30 minutes apart for each contribution
+      }
 
       // Schedule recurring execution every 24 hours
       setInterval(() => {
-        fetchLeetCodeQuestionLink()
-          .then(generateSolution)
-          .then(commitSolutionToGitHub);
+        for (let i = 0; i < 5; i++) {
+          setTimeout(() => {
+            fetchLeetCodeQuestionLink()
+              .then(generateSolution)
+              .then(commitSolutionToGitHub);
+          }, i * 30 * 60 * 1000); // 30 minutes apart for each contribution
+        }
       }, 24 * 60 * 60 * 1000);
     }, delay);
   };
 
-  // Initialize daily upload automation on component mount
   useEffect(() => {
-    scheduleDailyUpload();
+    scheduleDailyUploads();
   }, []);
 
   return (
