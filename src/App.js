@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Octokit } from "@octokit/rest";
 
-// Replace with your API key here
+// Replace with your API keys here
 const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY || "YOUR_GEMINI_API_KEY";
 const GITHUB_PAT = process.env.REACT_APP_GITHUB_PAT || "YOUR_GITHUB_PAT";
 
@@ -9,60 +9,61 @@ const REPO_OWNER = "avival69";
 const REPO_NAME = "leet-code-everyday";
 
 function App() {
-  const [questionLink, setQuestionLink] = useState("");
-  const [solution, setSolution] = useState("");
-  const [history, setHistory] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [authenticated, setAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
 
-  // Loading bar animation logic
+  const [questionLink, setQuestionLink] = useState("");
+  const [solution, setSolution] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [history, setHistory] = useState([]);
+
+  // Simulate a loading bar animation
   const simulateLoading = () => {
     setProgress(0);
     const interval = setInterval(() => {
       setProgress((prev) => (prev >= 100 ? 100 : prev + 10));
     }, 200);
-    return () => clearInterval(interval);
+    setTimeout(() => clearInterval(interval), 2000);
   };
 
-  // Authentication check
+  // Authentication Logic
   const checkAuth = () => {
     if (password === "aswin123") {
       setAuthenticated(true);
     } else {
-      alert("Incorrect Password! Try again.");
+      alert("Incorrect Password. Please try again.");
     }
   };
 
+  // Fetch a random LeetCode question
   const fetchLeetCodeQuestionLink = async () => {
     try {
       setLoading(true);
       simulateLoading();
+
       const response = await fetch(
         "https://raw.githubusercontent.com/raiyansayeed/leetcode-download-questions/master/question_links.txt"
       );
-
       if (!response.ok) throw new Error("Failed to fetch question links");
 
       const text = await response.text();
       const links = text.split("\n").filter((link) => link.trim() !== "");
-
-      if (!links.length) throw new Error("No question links found");
+      if (!links.length) throw new Error("No links found");
 
       const randomLink = links[Math.floor(Math.random() * links.length)];
       setQuestionLink(randomLink);
     } catch (error) {
-      console.error("Error fetching question link:", error);
+      console.error("Error:", error.message);
       alert(error.message);
     } finally {
       setLoading(false);
     }
   };
 
+  // Generate a solution
   const generateSolution = async () => {
-    if (!questionLink) return alert("Please fetch a question first!");
-
+    if (!questionLink) return alert("Fetch a question first!");
     try {
       setLoading(true);
       simulateLoading();
@@ -79,23 +80,25 @@ function App() {
         }
       );
 
-      if (!response.ok) throw new Error("Failed to generate solution. Check API key!");
-
+      if (!response.ok) throw new Error("Solution generation failed. Check API key!");
       const data = await response.json();
       const generatedSolution =
         data?.candidates?.[0]?.output || "Solution generation failed.";
 
       setSolution(generatedSolution);
     } catch (error) {
-      console.error("Error generating solution:", error);
+      console.error("Error:", error.message);
       alert(error.message);
     } finally {
       setLoading(false);
     }
   };
 
+  // Commit the solution to GitHub
   const commitSolutionToGitHub = async () => {
-    if (!solution) return alert("Generate a solution first!");
+    if (!solution || solution === "Solution generation failed.") {
+      return alert("Please generate a valid solution before committing.");
+    }
 
     try {
       setLoading(true);
@@ -106,7 +109,6 @@ function App() {
         .toISOString()
         .split("T")[0]}_${questionLink.split("/").pop().replace(/-/g, "_")}.py`;
 
-      // Check if the file exists
       let sha;
       try {
         const { data } = await octokit.repos.getContent({
@@ -119,7 +121,6 @@ function App() {
         sha = undefined;
       }
 
-      // Commit the solution
       await octokit.repos.createOrUpdateFileContents({
         owner: REPO_OWNER,
         repo: REPO_NAME,
@@ -133,19 +134,20 @@ function App() {
         ...prev,
         { questionLink, solution, fileName, timestamp: new Date().toLocaleString() },
       ]);
-      alert("Solution committed to GitHub!");
+      alert("Solution committed successfully!");
     } catch (error) {
-      console.error("Error committing solution:", error);
-      alert("Error committing to GitHub");
+      console.error("Error:", error.message);
+      alert("Error committing to GitHub.");
     } finally {
       setLoading(false);
     }
   };
 
+  // Authentication Page
   if (!authenticated) {
     return (
       <div style={styles.authContainer}>
-        <h2>Login</h2>
+        <h2 style={styles.authTitle}>Authentication</h2>
         <input
           type="password"
           placeholder="Enter Password"
@@ -174,10 +176,12 @@ function App() {
           Commit Solution
         </button>
       </div>
+
       {loading && <div style={{ ...styles.loadingBar, width: `${progress}%` }} />}
+
       <div style={styles.results}>
         <h3>Fetched Question:</h3>
-        <p>{questionLink || "No question link fetched yet."}</p>
+        <p>{questionLink || "No question fetched yet."}</p>
         <h3>Generated Solution:</h3>
         <pre style={styles.solutionBox}>{solution || "No solution generated yet."}</pre>
       </div>
@@ -190,45 +194,31 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    marginTop: "10%",
+    justifyContent: "center",
+    minHeight: "100vh",
+    backgroundColor: "#f4f4f9",
   },
-  input: {
-    padding: "10px",
-    margin: "10px 0",
-    width: "300px",
-  },
+  authTitle: { marginBottom: "10px", fontSize: "24px" },
+  input: { padding: "10px", margin: "10px", width: "250px" },
   button: {
     padding: "10px",
     backgroundColor: "#4caf50",
     color: "#fff",
     border: "none",
     cursor: "pointer",
+    borderRadius: "5px",
     margin: "5px",
   },
-  container: {
-    padding: "20px",
-    fontFamily: "Arial, sans-serif",
-    backgroundColor: "#f9f9f9",
-    minHeight: "100vh",
-  },
-  title: {
-    textAlign: "center",
-    marginBottom: "20px",
-  },
-  buttonContainer: {
-    display: "flex",
-    justifyContent: "center",
-    gap: "10px",
-  },
+  container: { padding: "20px", fontFamily: "Arial, sans-serif" },
+  title: { textAlign: "center" },
+  buttonContainer: { display: "flex", justifyContent: "center", gap: "10px" },
   loadingBar: {
     height: "5px",
     backgroundColor: "#4caf50",
-    marginTop: "10px",
     transition: "width 0.2s ease-in-out",
+    margin: "10px 0",
   },
-  results: {
-    marginTop: "20px",
-  },
+  results: { marginTop: "20px" },
   solutionBox: {
     backgroundColor: "#e8e8e8",
     padding: "10px",
