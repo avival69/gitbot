@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Octokit } from "@octokit/rest";
 
 // Replace with your API keys here
-const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API || "YOUR_GEMINI_API_KEY";
+const GEMINI_API_KEY = "AIzaSyC78S7o56Pb3lKpFHtrBAXdUOfl4EVUovU";
 const GITHUB_PAT = process.env.REACT_APP_GITHUB_PAT || "YOUR_GITHUB_PAT";
 
 const REPO_OWNER = "avival69";
